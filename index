@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Тапалка покойника — Миллион проклятий</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0b0a0f 0%, #030103 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Creepster', monospace;
+            margin: 0;
+            padding: 16px;
+        }
+
+        .game-container {
+            background: rgba(8, 5, 10, 0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 56px;
+            padding: 20px 18px 30px;
+            box-shadow: 0 25px 40px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,200,100,0.1);
+            border: 1px solid #6e3f2c;
+            max-width: 520px;
+            width: 100%;
+            transition: 0.2s;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #bc7a4a, #4a261a);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 5px #ff7b2e40;
+            margin-bottom: 5px;
+            font-family: 'Creepster', cursive;
+        }
+
+        .sub {
+            color: #a07254;
+            font-size: 0.7rem;
+            border-bottom: 1px dashed #6e3f2c;
+            display: inline-block;
+            padding-bottom: 5px;
+            margin-bottom: 18px;
+        }
+
+        .counter-block {
+            background: #050308aa;
+            border-radius: 48px;
+            padding: 8px 16px;
+            margin: 10px 0 16px;
+            border: 1px solid #7a4a30;
+        }
+
+        .clicks-label {
+            font-size: 0.8rem;
+            color: #cfaa7a;
+            letter-spacing: 2px;
+        }
+
+        .clicks-number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #ffdd99;
+            text-shadow: 0 0 6px #ff5e00;
+            line-height: 1;
+            font-family: 'Courier New', monospace;
+        }
+
+        .goal-info {
+            font-size: 0.7rem;
+            color: #b87a58;
+            margin-top: 5px;
+        }
+
+        .tap-area {
+            margin: 15px 0;
+            cursor: pointer;
+            transition: transform 0.05s ease;
+            display: flex;
+            justify-content: center;
+        }
+
+        .tap-area:active {
+            transform: scale(0.97);
+        }
+
+        .tap-image {
+            background: radial-gradient(circle at 35% 25%, #321f15, #130b07);
+            width: 210px;
+            height: 210px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 12px 25px rgba(0,0,0,0.7), inset 0 0 15px rgba(255,80,0,0.3);
+            border: 3px solid #875a3a;
+            transition: 0.03s linear;
+        }
+
+        .skull-icon {
+            font-size: 120px;
+            filter: drop-shadow(0 6px 10px black);
+            transition: 0.04s linear;
+        }
+
+        .upgrade-panel {
+            background: #0f0b10dd;
+            border-radius: 48px;
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid #784f34;
+        }
+
+        .upgrade-title {
+            font-weight: bold;
+            color: #e9c891;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .upgrade-stats {
+            display: flex;
+            justify-content: space-between;
+            background: #00000066;
+            border-radius: 40px;
+            padding: 8px 18px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+        }
+
+        .upgrade-btn {
+            background: #2c211b;
+            border: none;
+            color: #ffdead;
+            font-weight: bold;
+            padding: 12px 20px;
+            border-radius: 60px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #392818;
+            transition: 0.05s linear;
+            width: 85%;
+            font-family: monospace;
+        }
+
+        .upgrade-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #392818;
+        }
+
+        .upgrade-btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(0.2);
+        }
+
+        .cost-badge {
+            background: #000000aa;
+            padding: 4px 12px;
+            border-radius: 60px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+
+        .secret-area {
+            background: #030105cc;
+            border-radius: 32px;
+            padding: 10px;
+            margin-top: 12px;
+            border-left: 5px solid #aa6e42;
+            transition: 0.2s;
+        }
+
+        .secret-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: #bd8f67;
+        }
+
+        .secret-code {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.1rem;
+            background: #000000bb;
+            display: inline-block;
+            padding: 5px 16px;
+            border-radius: 60px;
+            letter-spacing: 1px;
+            color: #f7cf7a;
+            word-break: break-all;
+        }
+
+        .reset-btn {
+            background: none;
+            border: 1px solid #6e3f2c;
+            color: #bc8f6a;
+            padding: 6px 12px;
+            border-radius: 60px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+
+        .anticheat-warning {
+            font-size: 0.55rem;
+            color: #aa6a44;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        footer {
+            font-size: 0.5rem;
+            color: #554433;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container" id="gameRoot">
+    <div class="title">💀 ТАПАЛКА ПОКОЙНИКА 💀</div>
+    <div class="sub">нечисть требует миллион проклятий</div>
+
+    <div class="counter-block">
+        <div class="clicks-label">НАКОПЛЕНО КЛИКОВ</div>
+        <div class="clicks-number" id="clickCounter">0</div>
+        <div class="goal-info">🎯 ЦЕЛЬ: 1 000 000 (секрет появится)</div>
+    </div>
+
+    <div class="tap-area" id="tapZone">
+        <div class="tap-image">
+            <div class="skull-icon" id="skullEmoji">💀</div>
+        </div>
+    </div>
+
+    <div class="upgrade-panel">
+        <div class="upgrade-title">⚰️ РИТУАЛЬНЫЙ АЛТАРЬ ⚰️</div>
+        <div class="upgrade-stats">
+            <span>💪 СИЛА УДАРА:</span>
+            <span id="powerValue">1</span>
+            <span>🔪 за клик</span>
+        </div>
+        <button class="upgrade-btn" id="upgradeBtn">
+            🩸 ПОВЫСИТЬ СИЛУ 🩸
+        </button>
+        <div id="upgradeInfo" style="font-size:0.7rem; margin-top: 8px; color:#b8946e;">💰 следующая цена: <span id="nextCost">100</span> кликов</div>
+    </div>
+
+    <div class="secret-area" id="secretBox">
+        <div class="secret-label">💀 СЕКРЕТНЫЙ КОД (после 1 млн) 💀</div>
+        <div class="secret-code" id="secretDisplay">⚰️ зарыт глубоко ⚰️</div>
+        <div style="font-size:0.6rem; margin-top: 5px;">начинается всегда с <span style="color:#dd9f6e;">sqw</span> или <span style="color:#dd9f6e;">mng</span></div>
+    </div>
+
+    <div style="margin-top: 12px;">
+        <button class="reset-btn" id="resetBtn">🪦 РАЗРУШИТЬ СКЛЕП (СБРОС) 🪦</button>
+    </div>
+    <div class="anticheat-warning">
+        <span>🛡️ ЗАЩИТА ОТ АВТОКЛИКЕРА 🛡️</span>
+    </div>
+    <footer>каждый клик проверяется · скорость не должна превышать людскую</footer>
+</div>
+
+<script>
+    (function() {
+        // ------------------- ОСНОВНЫЕ ПАРАМЕТРЫ -------------------
+        let totalClicks = 0;          // сколько всего кликов (монет) накоплено
+        let clickPower = 1;           // сколько даётся за 1 нажатие (+1 за каждую прокачку)
+        let upgradeLevel = 0;         // сколько раз купили прокачку (для расчёта цены)
+        
+        // Динамическая стоимость улучшения: цена = 100 + upgradeLevel * 100
+        // То есть: первый апгр. 100, второй 200, третий 300 ... а прибыль +1 к клику каждый раз
+        function getCurrentUpgradeCost() {
+            return 100 + (upgradeLevel * 100);
+        }
+        
+        // Флаг секретного кода
+        let secretUnlocked = false;
+        let currentSecretCode = "";
+        
+        // ---------- ЗАЩИТА ОТ АВТОКЛИКЕРА ----------
+        // Будем отслеживать временные метки последних кликов.
+        // Если интервал между кликами слишком маленький (быстрее 40 мс) — подозрительно,
+        // а также фиксируем "пачки" через таймер. Главное: не давать читерам быстро накрутить миллион.
+        // Алгоритм: храним массив последних 6 меток, если в промежутке 500 мс произошло > 12 кликов — блокируем на время.
+        let clickTimestamps = [];       // храним время каждого клика (performance.now)
+        let isPenalty = false;          // штрафной режим
+        let penaltyTimer = null;
+        let blockedClicksCount = 0;     // статистика блокировки (для UI не обязательно)
+        
+        function isClickAllowed() {
+            if (isPenalty) return false;
+            const now = performance.now();
+            clickTimestamps.push(now);
+            // оставляем только последние 20 меток
+            while (clickTimestamps.length > 20) clickTimestamps.shift();
+            
+            // Проверка: за последние 600 мс количество кликов не больше 12 (нормальный человек ~ 8-10 максимум за 0.6 сек)
+            const sixHundredMsAgo = now - 600;
+            const recentClicks = clickTimestamps.filter(t => t >= sixHundredMsAgo);
+            if (recentClicks.length > 14) {
+                // авто-кликер палим! включаем штраф на 4 секунды
+                activatePenalty();
+                return false;
+            }
+            
+            // Доп. проверка: минимальный интервал между последними двумя кликами меньше 22 мс (слишком быстро)
+            if (clickTimestamps.length >= 2) {
+                const last = clickTimestamps[clickTimestamps.length - 1];
+                const prev = clickTimestamps[clickTimestamps.length - 2];
+                if (last - prev < 22) {
+                    activatePenalty();
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        function activatePenalty() {
+            if (isPenalty) return;
+            isPenalty = true;
+            // визуальное предупреждение на тап-зоне
+            const tapDiv = document.querySelector('.tap-image');
+            if (tapDiv) {
+                tapDiv.style.filter = "grayscale(0.8)";
+                tapDiv.style.transition = "0.2s";
+            }
+            const warningMsg = document.createElement('div');
+            warningMsg.id = "antiCheatMsg";
+            warningMsg.innerText = "⚠️ ДУХИ БЛОКИРУЮТ АВТОКЛИК! ПОДОЖДИ ⚠️";
+            warningMsg.style.position = "absolute";
+            warningMsg.style.left = "20%";
+            warningMsg.style.right = "20%";
+            warningMsg.style.backgroundColor = "#5a1e0e";
+            warningMsg.style.color = "#ffbb88";
+            warningMsg.style.borderRadius = "40px";
+            warningMsg.style.padding = "6px";
+            warningMsg.style.fontSize = "0.7rem";
+            warningMsg.style.zIndex = "99";
+            warningMsg.style.textAlign = "center";
+            const container = document.querySelector('.game-container');
+            if (container && !document.getElementById("antiCheatMsg")) {
+                container.style.position = "relative";
+                container.appendChild(warningMsg);
+                setTimeout(() => { if(warningMsg) warningMsg.remove(); }, 3500);
+            }
+            if (penaltyTimer) clearTimeout(penaltyTimer);
+            penaltyTimer = setTimeout(() => {
+                isPenalty = false;
+                if (tapDiv) tapDiv.style.filter = "";
+                const msgDiv = document.getElementById("antiCheatMsg");
+                if (msgDiv) msgDiv.remove();
+            }, 3800);
+        }
+        
+        // ---------- ГЕНЕРАЦИЯ КОДА (sqw или mng) ----------
+        function generateSecretCode() {
+            const prefix = Math.random() < 0.5 ? "sqw" : "mng";
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let randomPart = '';
+            const len = Math.floor(Math.random() * 9) + 7; // от 7 до 15 символов после префикса -> общая длина норм
+            for (let i = 0; i < len; i++) {
+                randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return prefix + randomPart;
+        }
+        
+        // ---------- ОБНОВЛЕНИЕ ВСЕГО UI ----------
+        function updateUI() {
+            // Счетчик кликов
+            document.getElementById('clickCounter').innerText = totalClicks;
+            document.getElementById('powerValue').innerText = clickPower;
+            
+            const nextCost = getCurrentUpgradeCost();
+            document.getElementById('nextCost').innerText = nextCost;
+            
+            // Управление кнопкой улучшения
+            const upgradeButton = document.getElementById('upgradeBtn');
+            if (totalClicks >= nextCost) {
+                upgradeButton.classList.remove('disabled');
+                upgradeButton.disabled = false;
+            } else {
+                upgradeButton.classList.add('disabled');
+                upgradeButton.disabled = true;
+            }
+            
+            // Секретный код за 1 000 000 кликов (ЦЕЛЬ)
+            if (!secretUnlocked && totalClicks >= 1000000) {
+                currentSecretCode = generateSecretCode();
+                secretUnlocked = true;
+                const secretDisplay = document.getElementById('secretDisplay');
+                secretDisplay.innerText = currentSecretCode;
+                const secretBox = document.getElementById('secretBox');
+                secretBox.style.background = "#3f281cee";
+                secretBox.style.borderLeftColor = "#e7a35c";
+                secretBox.style.transition = "0.3s";
+                // Дополнительный эффект
+            } 
+            else if (secretUnlocked && currentSecretCode) {
+                document.getElementById('secretDisplay').innerText = currentSecretCode;
+            }
+            else {
+                // если еще не достигли 1 млн показываем прогресс
+                const needed = 1000000 - totalClicks;
+                if (needed > 0) {
+                    document.getElementById('secretDisplay').innerHTML = `🪦 ещё ${needed.toLocaleString()} кликов до кода 🪦`;
+                } else if (!secretUnlocked && totalClicks >= 1000000) {
+                    // форс-разблок
+                    currentSecretCode = generateSecretCode();
+                    secretUnlocked = true;
+                    document.getElementById('secretDisplay').innerText = currentSecretCode;
+                } else {
+                    document.getElementById('secretDisplay').innerHTML = "⚰️ нужно 1 000 000 тапов ⚰️";
+                }
+            }
+            
+            // доп. визуал при достижении цели
+            if (totalClicks >= 1000000 && !document.getElementById('goalAchieveMsg')) {
+                const goalMsg = document.createElement('div');
+                goalMsg.id = "goalAchieveMsg";
+                goalMsg.innerText = "💀 ТЫ ПРОКЛЯЛ МИЛЛИОН! КОД ОТКРЫТ 💀";
+                goalMsg.style.background = "#3b2219";
+                goalMsg.style.marginTop = "8px";
+                goalMsg.style.borderRadius = "28px";
+                goalMsg.style.fontSize = "0.7rem";
+                goalMsg.style.padding = "4px";
+                document.querySelector('.secret-area')?.appendChild(goalMsg);
+                setTimeout(() => { if(goalMsg) goalMsg.style.opacity = "0.6"; }, 3000);
+            }
+        }
+        
+        // ---------- ОБРАБОТКА ТАПА (с антиавтокликером) ----------
+        function handleTap(event) {
+            if (isPenalty) {
+                // дополнительно вибрировать? нет, просто игнорируем
+                const skull = document.getElementById('skullEmoji');
+                if (skull) {
+                    skull.style.transform = "rotate(3deg)";
+                    setTimeout(() => { if(skull) skull.style.transform = ""; }, 100);
+                }
+                return;
+            }
+            
+            if (!isClickAllowed()) {
+                return; // заблокировано защитой
+            }
+            
+            // добавляем клики по силе
+            totalClicks += clickPower;
+            updateUI();
+            
+            // Визуальный фидбак черепа
+            const skullDiv = document.getElementById('skullEmoji');
+            if (skullDiv) {
+                skullDiv.style.transform = "scale(0.85)";
+                setTimeout(() => { if(skullDiv) skullDiv.style.transform = "scale(1)"; }, 85);
+            }
+            const tapImgDiv = document.querySelector('.tap-image');
+            if (tapImgDiv) {
+                tapImgDiv.style.transform = "scale(0.96)";
+                setTimeout(() => { if(tapImgDiv) tapImgDiv.style.transform = ""; }, 70);
+            }
+            
+            // легкий эффект дрожи для атмосферы
+            const container = document.querySelector('.game-container');
+            if (container) {
+                container.style.transform = "translateX(1px)";
+                setTimeout(() => { if(container) container.style.transform = ""; }, 50);
+            }
+        }
+        
+        // ---------- ПРОКАЧКА: цена растет, +1 к клику ----------
+        function upgradeAction() {
+            if (isPenalty) {
+                return;
+            }
+            const cost = getCurrentUpgradeCost();
+            if (totalClicks >= cost) {
+                totalClicks -= cost;
+                clickPower += 1;    // +1 к прибыли за клик
+                upgradeLevel += 1;
+                updateUI();
+                // анимация кнопки
+                const btn = document.getElementById('upgradeBtn');
+                if (btn) {
+                    btn.style.transform = "scale(0.95)";
+                    setTimeout(() => { if(btn) btn.style.transform = ""; }, 100);
+                }
+                // дополнительный звуковой эффект (нет звука, но добавим текст на секунду)
+                const powerSpan = document.getElementById('powerValue');
+                if(powerSpan) powerSpan.style.textShadow = "0 0 6px #ffaa33";
+                setTimeout(() => { if(powerSpan) powerSpan.style.textShadow = ""; }, 200);
+            } else {
+                // недостаточно кликов
+                const upgradeBtn = document.getElementById('upgradeBtn');
+                upgradeBtn.style.transform = "translateX(3px)";
+                setTimeout(() => { if(upgradeBtn) upgradeBtn.style.transform = ""; }, 120);
+            }
+        }
+        
+        // ---------- СБРОС ИГРЫ (сохраняем механику античита, но обнуляем всё) ----------
+        function resetGame() {
+            totalClicks = 0;
+            clickPower = 1;
+            upgradeLevel = 0;
+            secretUnlocked = false;
+            currentSecretCode = "";
+            // очищаем массив таймстампов, чтобы не было ложных банов после сброса
+            clickTimestamps = [];
+            if (penaltyTimer) clearTimeout(penaltyTimer);
+            isPenalty = false;
+            const tapDiv = document.querySelector('.tap-image');
+            if (tapDiv) tapDiv.style.filter = "";
+            const warnMsg = document.getElementById("antiCheatMsg");
+            if (warnMsg) warnMsg.remove();
+            // сброс стиля секретной зоны
+            const secretBox = document.getElementById('secretBox');
+            if(secretBox){
+                secretBox.style.background = "#030105cc";
+                secretBox.style.borderLeftColor = "#aa6e42";
+            }
+            const goalMsg = document.getElementById('goalAchieveMsg');
+            if(goalMsg) goalMsg.remove();
+            updateUI();
+        }
+        
+        // ---------- ПРИВЯЗКА СОБЫТИЙ ----------
+        const tapZone = document.getElementById('tapZone');
+        const upgradeBtnElem = document.getElementById('upgradeBtn');
+        const resetBtnElem = document.getElementById('resetBtn');
+        
+        tapZone.addEventListener('click', handleTap);
+        upgradeBtnElem.addEventListener('click', upgradeAction);
+        resetBtnElem.addEventListener('click', resetGame);
+        
+        // Предотвращаем контекстное меню на картинке и долгое нажатие
+        const tapImageDiv = document.querySelector('.tap-image');
+        if (tapImageDiv) {
+            tapImageDiv.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+        
+        // Блокировка автокликера через очень быстрые интервалы также отлавливается через isClickAllowed
+        // Дополнительно можно мониторить, чтобы клики не пролетали если js перегружен — наша защита сработает.
+        
+        // Инициализация UI
+        updateUI();
+        
+        // Секрет по условию: генерируется только когда totalClicks >= 1000000, всегда с префиксом sqw или mng (доказано в generateSecretCode)
+        console.log("Тапалка покойника с растущей прокачкой, целью 1 млн и античитом");
+    })();
+</script>
+</body>
+</html>
