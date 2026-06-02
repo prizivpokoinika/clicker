@@ -194,7 +194,7 @@
         .secret-code {
             font-family: 'Courier New', monospace;
             font-weight: bold;
-            font-size: 1.1rem;
+            font-size: 1rem;
             background: #000000bb;
             display: inline-block;
             padding: 5px 16px;
@@ -223,6 +223,12 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+        }
+
+        .save-badge {
+            font-size: 0.5rem;
+            color: #6f8f6f;
+            margin-top: 8px;
         }
 
         footer {
@@ -273,6 +279,7 @@
     <div class="anticheat-warning">
         <span>🛡️ ЗАЩИТА ОТ АВТОКЛИКЕРА 🛡️</span>
     </div>
+    <div class="save-badge">💾 прогресс сохраняется автоматически</div>
     <footer>каждый клик проверяется · скорость не должна превышать людскую</footer>
 </div>
 
@@ -283,43 +290,65 @@
         let clickPower = 1;           // сколько даётся за 1 нажатие (+1 за каждую прокачку)
         let upgradeLevel = 0;         // сколько раз купили прокачку (для расчёта цены)
         
-        // Динамическая стоимость улучшения: цена = 100 + upgradeLevel * 100
-        // То есть: первый апгр. 100, второй 200, третий 300 ... а прибыль +1 к клику каждый раз
-        function getCurrentUpgradeCost() {
-            return 100 + (upgradeLevel * 100);
-        }
-        
         // Флаг секретного кода
         let secretUnlocked = false;
         let currentSecretCode = "";
         
+        // Динамическая стоимость улучшения: цена = 100 + upgradeLevel * 100
+        function getCurrentUpgradeCost() {
+            return 100 + (upgradeLevel * 100);
+        }
+        
+        // ---------- АВТОСОХРАНЕНИЕ В LOCALSTORAGE ----------
+        const SAVE_KEY = 'tapalka_pokoinika_save';
+        
+        function saveGame() {
+            const saveData = {
+                totalClicks: totalClicks,
+                clickPower: clickPower,
+                upgradeLevel: upgradeLevel,
+                secretUnlocked: secretUnlocked,
+                currentSecretCode: currentSecretCode,
+                version: 1
+            };
+            localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+        }
+        
+        function loadGame() {
+            const raw = localStorage.getItem(SAVE_KEY);
+            if (!raw) return false;
+            try {
+                const data = JSON.parse(raw);
+                if (data.version === 1) {
+                    totalClicks = data.totalClicks;
+                    clickPower = data.clickPower;
+                    upgradeLevel = data.upgradeLevel;
+                    secretUnlocked = data.secretUnlocked;
+                    currentSecretCode = data.currentSecretCode || "";
+                    return true;
+                }
+            } catch(e) { console.warn("Ошибка загрузки сохранения", e); }
+            return false;
+        }
+        
         // ---------- ЗАЩИТА ОТ АВТОКЛИКЕРА ----------
-        // Будем отслеживать временные метки последних кликов.
-        // Если интервал между кликами слишком маленький (быстрее 40 мс) — подозрительно,
-        // а также фиксируем "пачки" через таймер. Главное: не давать читерам быстро накрутить миллион.
-        // Алгоритм: храним массив последних 6 меток, если в промежутке 500 мс произошло > 12 кликов — блокируем на время.
-        let clickTimestamps = [];       // храним время каждого клика (performance.now)
-        let isPenalty = false;          // штрафной режим
+        let clickTimestamps = [];
+        let isPenalty = false;
         let penaltyTimer = null;
-        let blockedClicksCount = 0;     // статистика блокировки (для UI не обязательно)
         
         function isClickAllowed() {
             if (isPenalty) return false;
             const now = performance.now();
             clickTimestamps.push(now);
-            // оставляем только последние 20 меток
             while (clickTimestamps.length > 20) clickTimestamps.shift();
             
-            // Проверка: за последние 600 мс количество кликов не больше 12 (нормальный человек ~ 8-10 максимум за 0.6 сек)
             const sixHundredMsAgo = now - 600;
             const recentClicks = clickTimestamps.filter(t => t >= sixHundredMsAgo);
             if (recentClicks.length > 14) {
-                // авто-кликер палим! включаем штраф на 4 секунды
                 activatePenalty();
                 return false;
             }
             
-            // Доп. проверка: минимальный интервал между последними двумя кликами меньше 22 мс (слишком быстро)
             if (clickTimestamps.length >= 2) {
                 const last = clickTimestamps[clickTimestamps.length - 1];
                 const prev = clickTimestamps[clickTimestamps.length - 2];
@@ -334,7 +363,6 @@
         function activatePenalty() {
             if (isPenalty) return;
             isPenalty = true;
-            // визуальное предупреждение на тап-зоне
             const tapDiv = document.querySelector('.tap-image');
             if (tapDiv) {
                 tapDiv.style.filter = "grayscale(0.8)";
@@ -373,23 +401,21 @@
             const prefix = Math.random() < 0.5 ? "sqw" : "mng";
             const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
             let randomPart = '';
-            const len = Math.floor(Math.random() * 9) + 7; // от 7 до 15 символов после префикса -> общая длина норм
+            const len = Math.floor(Math.random() * 9) + 7;
             for (let i = 0; i < len; i++) {
                 randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
             }
             return prefix + randomPart;
         }
         
-        // ---------- ОБНОВЛЕНИЕ ВСЕГО UI ----------
+        // ---------- ОБНОВЛЕНИЕ ВСЕГО UI + АВТОСОХРАНЕНИЕ ----------
         function updateUI() {
-            // Счетчик кликов
             document.getElementById('clickCounter').innerText = totalClicks;
             document.getElementById('powerValue').innerText = clickPower;
             
             const nextCost = getCurrentUpgradeCost();
             document.getElementById('nextCost').innerText = nextCost;
             
-            // Управление кнопкой улучшения
             const upgradeButton = document.getElementById('upgradeBtn');
             if (totalClicks >= nextCost) {
                 upgradeButton.classList.remove('disabled');
@@ -399,7 +425,7 @@
                 upgradeButton.disabled = true;
             }
             
-            // Секретный код за 1 000 000 кликов (ЦЕЛЬ)
+            // Секретный код за 1 000 000 кликов
             if (!secretUnlocked && totalClicks >= 1000000) {
                 currentSecretCode = generateSecretCode();
                 secretUnlocked = true;
@@ -408,46 +434,40 @@
                 const secretBox = document.getElementById('secretBox');
                 secretBox.style.background = "#3f281cee";
                 secretBox.style.borderLeftColor = "#e7a35c";
-                secretBox.style.transition = "0.3s";
-                // Дополнительный эффект
+                
+                const goalMsg = document.getElementById('goalAchieveMsg');
+                if (!goalMsg) {
+                    const msg = document.createElement('div');
+                    msg.id = "goalAchieveMsg";
+                    msg.innerText = "💀 ТЫ ПРОКЛЯЛ МИЛЛИОН! КОД ОТКРЫТ 💀";
+                    msg.style.background = "#3b2219";
+                    msg.style.marginTop = "8px";
+                    msg.style.borderRadius = "28px";
+                    msg.style.fontSize = "0.7rem";
+                    msg.style.padding = "4px";
+                    document.querySelector('.secret-area')?.appendChild(msg);
+                    setTimeout(() => { if(msg) msg.style.opacity = "0.6"; }, 3000);
+                }
             } 
             else if (secretUnlocked && currentSecretCode) {
                 document.getElementById('secretDisplay').innerText = currentSecretCode;
             }
             else {
-                // если еще не достигли 1 млн показываем прогресс
                 const needed = 1000000 - totalClicks;
-                if (needed > 0) {
+                if (needed > 0 && needed < 1000000) {
                     document.getElementById('secretDisplay').innerHTML = `🪦 ещё ${needed.toLocaleString()} кликов до кода 🪦`;
-                } else if (!secretUnlocked && totalClicks >= 1000000) {
-                    // форс-разблок
-                    currentSecretCode = generateSecretCode();
-                    secretUnlocked = true;
-                    document.getElementById('secretDisplay').innerText = currentSecretCode;
                 } else {
                     document.getElementById('secretDisplay').innerHTML = "⚰️ нужно 1 000 000 тапов ⚰️";
                 }
             }
             
-            // доп. визуал при достижении цели
-            if (totalClicks >= 1000000 && !document.getElementById('goalAchieveMsg')) {
-                const goalMsg = document.createElement('div');
-                goalMsg.id = "goalAchieveMsg";
-                goalMsg.innerText = "💀 ТЫ ПРОКЛЯЛ МИЛЛИОН! КОД ОТКРЫТ 💀";
-                goalMsg.style.background = "#3b2219";
-                goalMsg.style.marginTop = "8px";
-                goalMsg.style.borderRadius = "28px";
-                goalMsg.style.fontSize = "0.7rem";
-                goalMsg.style.padding = "4px";
-                document.querySelector('.secret-area')?.appendChild(goalMsg);
-                setTimeout(() => { if(goalMsg) goalMsg.style.opacity = "0.6"; }, 3000);
-            }
+            // Автосохранение после каждого обновления UI (после клика/прокачки)
+            saveGame();
         }
         
-        // ---------- ОБРАБОТКА ТАПА (с антиавтокликером) ----------
+        // ---------- ОБРАБОТКА ТАПА ----------
         function handleTap(event) {
             if (isPenalty) {
-                // дополнительно вибрировать? нет, просто игнорируем
                 const skull = document.getElementById('skullEmoji');
                 if (skull) {
                     skull.style.transform = "rotate(3deg)";
@@ -456,15 +476,11 @@
                 return;
             }
             
-            if (!isClickAllowed()) {
-                return; // заблокировано защитой
-            }
+            if (!isClickAllowed()) return;
             
-            // добавляем клики по силе
             totalClicks += clickPower;
             updateUI();
             
-            // Визуальный фидбак черепа
             const skullDiv = document.getElementById('skullEmoji');
             if (skullDiv) {
                 skullDiv.style.transform = "scale(0.85)";
@@ -475,60 +491,47 @@
                 tapImgDiv.style.transform = "scale(0.96)";
                 setTimeout(() => { if(tapImgDiv) tapImgDiv.style.transform = ""; }, 70);
             }
-            
-            // легкий эффект дрожи для атмосферы
-            const container = document.querySelector('.game-container');
-            if (container) {
-                container.style.transform = "translateX(1px)";
-                setTimeout(() => { if(container) container.style.transform = ""; }, 50);
-            }
         }
         
-        // ---------- ПРОКАЧКА: цена растет, +1 к клику ----------
+        // ---------- ПРОКАЧКА ----------
         function upgradeAction() {
-            if (isPenalty) {
-                return;
-            }
+            if (isPenalty) return;
+            
             const cost = getCurrentUpgradeCost();
             if (totalClicks >= cost) {
                 totalClicks -= cost;
-                clickPower += 1;    // +1 к прибыли за клик
+                clickPower += 1;
                 upgradeLevel += 1;
                 updateUI();
-                // анимация кнопки
+                
                 const btn = document.getElementById('upgradeBtn');
                 if (btn) {
                     btn.style.transform = "scale(0.95)";
                     setTimeout(() => { if(btn) btn.style.transform = ""; }, 100);
                 }
-                // дополнительный звуковой эффект (нет звука, но добавим текст на секунду)
-                const powerSpan = document.getElementById('powerValue');
-                if(powerSpan) powerSpan.style.textShadow = "0 0 6px #ffaa33";
-                setTimeout(() => { if(powerSpan) powerSpan.style.textShadow = ""; }, 200);
             } else {
-                // недостаточно кликов
                 const upgradeBtn = document.getElementById('upgradeBtn');
                 upgradeBtn.style.transform = "translateX(3px)";
                 setTimeout(() => { if(upgradeBtn) upgradeBtn.style.transform = ""; }, 120);
             }
         }
         
-        // ---------- СБРОС ИГРЫ (сохраняем механику античита, но обнуляем всё) ----------
+        // ---------- СБРОС ИГРЫ ----------
         function resetGame() {
             totalClicks = 0;
             clickPower = 1;
             upgradeLevel = 0;
             secretUnlocked = false;
             currentSecretCode = "";
-            // очищаем массив таймстампов, чтобы не было ложных банов после сброса
             clickTimestamps = [];
             if (penaltyTimer) clearTimeout(penaltyTimer);
             isPenalty = false;
+            
             const tapDiv = document.querySelector('.tap-image');
             if (tapDiv) tapDiv.style.filter = "";
             const warnMsg = document.getElementById("antiCheatMsg");
             if (warnMsg) warnMsg.remove();
-            // сброс стиля секретной зоны
+            
             const secretBox = document.getElementById('secretBox');
             if(secretBox){
                 secretBox.style.background = "#030105cc";
@@ -536,33 +539,58 @@
             }
             const goalMsg = document.getElementById('goalAchieveMsg');
             if(goalMsg) goalMsg.remove();
+            
             updateUI();
+            // после сброса сохраняем чистый прогресс
+            saveGame();
         }
         
-        // ---------- ПРИВЯЗКА СОБЫТИЙ ----------
+        // ---------- ПРИВЯЗКА СОБЫТИЙ И ЗАГРУЗКА СОХРАНЕНИЯ ----------
         const tapZone = document.getElementById('tapZone');
         const upgradeBtnElem = document.getElementById('upgradeBtn');
         const resetBtnElem = document.getElementById('resetBtn');
         
+        // ЗАГРУЖАЕМ СОХРАНЕНИЕ ПРИ СТАРТЕ
+        const loaded = loadGame();
+        if (loaded) {
+            // дополнительная проверка на secretUnlocked + код: если код был но флаг есть — ок
+            if (secretUnlocked && (!currentSecretCode || currentSecretCode === "")) {
+                currentSecretCode = generateSecretCode();
+            }
+            // если после загрузки кликов стало >= 1 млн, но секрет не проставлен (на всякий)
+            if (totalClicks >= 1000000 && !secretUnlocked) {
+                currentSecretCode = generateSecretCode();
+                secretUnlocked = true;
+            }
+        } else {
+            // первый запуск, всё по дефолту (0 кликов, сила 1)
+            totalClicks = 0;
+            clickPower = 1;
+            upgradeLevel = 0;
+            secretUnlocked = false;
+            currentSecretCode = "";
+        }
+        
+        // первоначальный рендер
+        updateUI();
+        
+        // Слушатели событий
         tapZone.addEventListener('click', handleTap);
         upgradeBtnElem.addEventListener('click', upgradeAction);
         resetBtnElem.addEventListener('click', resetGame);
         
-        // Предотвращаем контекстное меню на картинке и долгое нажатие
         const tapImageDiv = document.querySelector('.tap-image');
         if (tapImageDiv) {
             tapImageDiv.addEventListener('contextmenu', (e) => e.preventDefault());
         }
         
-        // Блокировка автокликера через очень быстрые интервалы также отлавливается через isClickAllowed
-        // Дополнительно можно мониторить, чтобы клики не пролетали если js перегружен — наша защита сработает.
+        // Сохраняем перед закрытием страницы (на всякий случай дубль)
+        window.addEventListener('beforeunload', () => {
+            saveGame();
+        });
         
-        // Инициализация UI
-        updateUI();
-        
-        // Секрет по условию: генерируется только когда totalClicks >= 1000000, всегда с префиксом sqw или mng (доказано в generateSecretCode)
-        console.log("Тапалка покойника с растущей прокачкой, целью 1 млн и античитом");
+        console.log("Тапалка покойника с сохранением — теперь прогресс не пропадает после закрытия!");
     })();
 </script>
 </body>
-</html>
+                                                                                                                                                                   </html>
