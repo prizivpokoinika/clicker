@@ -168,14 +168,6 @@
             filter: grayscale(0.2);
         }
 
-        .cost-badge {
-            background: #000000aa;
-            padding: 4px 12px;
-            border-radius: 60px;
-            font-size: 0.8rem;
-            margin-left: 8px;
-        }
-
         .secret-area {
             background: #030105cc;
             border-radius: 32px;
@@ -194,7 +186,7 @@
         .secret-code {
             font-family: 'Courier New', monospace;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 0.95rem;
             background: #000000bb;
             display: inline-block;
             padding: 5px 16px;
@@ -213,6 +205,11 @@
             font-size: 0.7rem;
             cursor: pointer;
             margin-top: 6px;
+            transition: 0.1s;
+        }
+
+        .reset-btn:active {
+            background: #2a1a10;
         }
 
         .anticheat-warning {
@@ -234,6 +231,7 @@
         footer {
             font-size: 0.5rem;
             color: #554433;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -285,22 +283,21 @@
 
 <script>
     (function() {
-        // ------------------- ОСНОВНЫЕ ПАРАМЕТРЫ -------------------
-        let totalClicks = 0;          // сколько всего кликов (монет) накоплено
-        let clickPower = 1;           // сколько даётся за 1 нажатие (+1 за каждую прокачку)
-        let upgradeLevel = 0;         // сколько раз купили прокачку (для расчёта цены)
+        // ---------- ОСНОВНЫЕ ПАРАМЕТРЫ ----------
+        let totalClicks = 0;          // всего кликов (монет)
+        let clickPower = 1;           // сила клика
+        let upgradeLevel = 0;         // количество улучшений (цена = 100 + уровень*100)
         
-        // Флаг секретного кода
         let secretUnlocked = false;
         let currentSecretCode = "";
         
-        // Динамическая стоимость улучшения: цена = 100 + upgradeLevel * 100
+        // Динамическая стоимость улучшения
         function getCurrentUpgradeCost() {
             return 100 + (upgradeLevel * 100);
         }
         
-        // ---------- АВТОСОХРАНЕНИЕ В LOCALSTORAGE ----------
-        const SAVE_KEY = 'tapalka_pokoinika_save';
+        // ---------- АВТОСОХРАНЕНИЕ (ИСПРАВЛЕННОЕ) ----------
+        const SAVE_KEY = 'tapalka_pokoinika_v2';
         
         function saveGame() {
             const saveData = {
@@ -309,9 +306,15 @@
                 upgradeLevel: upgradeLevel,
                 secretUnlocked: secretUnlocked,
                 currentSecretCode: currentSecretCode,
-                version: 1
+                version: 2
             };
             localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+            // визуальный индикатор сохранения (мигание)
+            const badge = document.querySelector('.save-badge');
+            if (badge) {
+                badge.style.opacity = '0.6';
+                setTimeout(() => { if(badge) badge.style.opacity = '1'; }, 200);
+            }
         }
         
         function loadGame() {
@@ -319,7 +322,7 @@
             if (!raw) return false;
             try {
                 const data = JSON.parse(raw);
-                if (data.version === 1) {
+                if (data.version === 2) {
                     totalClicks = data.totalClicks;
                     clickPower = data.clickPower;
                     upgradeLevel = data.upgradeLevel;
@@ -327,7 +330,9 @@
                     currentSecretCode = data.currentSecretCode || "";
                     return true;
                 }
-            } catch(e) { console.warn("Ошибка загрузки сохранения", e); }
+            } catch(e) {
+                console.warn("Ошибка загрузки", e);
+            }
             return false;
         }
         
@@ -342,6 +347,7 @@
             clickTimestamps.push(now);
             while (clickTimestamps.length > 20) clickTimestamps.shift();
             
+            // 600 мс -> не больше 14 кликов
             const sixHundredMsAgo = now - 600;
             const recentClicks = clickTimestamps.filter(t => t >= sixHundredMsAgo);
             if (recentClicks.length > 14) {
@@ -349,6 +355,7 @@
                 return false;
             }
             
+            // минимальный интервал 22 мс
             if (clickTimestamps.length >= 2) {
                 const last = clickTimestamps[clickTimestamps.length - 1];
                 const prev = clickTimestamps[clickTimestamps.length - 2];
@@ -368,35 +375,42 @@
                 tapDiv.style.filter = "grayscale(0.8)";
                 tapDiv.style.transition = "0.2s";
             }
-            const warningMsg = document.createElement('div');
-            warningMsg.id = "antiCheatMsg";
-            warningMsg.innerText = "⚠️ ДУХИ БЛОКИРУЮТ АВТОКЛИК! ПОДОЖДИ ⚠️";
-            warningMsg.style.position = "absolute";
-            warningMsg.style.left = "20%";
-            warningMsg.style.right = "20%";
-            warningMsg.style.backgroundColor = "#5a1e0e";
-            warningMsg.style.color = "#ffbb88";
-            warningMsg.style.borderRadius = "40px";
-            warningMsg.style.padding = "6px";
-            warningMsg.style.fontSize = "0.7rem";
-            warningMsg.style.zIndex = "99";
-            warningMsg.style.textAlign = "center";
-            const container = document.querySelector('.game-container');
-            if (container && !document.getElementById("antiCheatMsg")) {
-                container.style.position = "relative";
-                container.appendChild(warningMsg);
-                setTimeout(() => { if(warningMsg) warningMsg.remove(); }, 3500);
+            
+            // сообщение о блокировке
+            let warnMsg = document.getElementById("antiCheatMsg");
+            if (!warnMsg) {
+                warnMsg = document.createElement('div');
+                warnMsg.id = "antiCheatMsg";
+                warnMsg.innerText = "⚠️ ДУХИ БЛОКИРУЮТ АВТОКЛИК! ПОДОЖДИ ⚠️";
+                warnMsg.style.position = "absolute";
+                warnMsg.style.left = "15%";
+                warnMsg.style.right = "15%";
+                warnMsg.style.backgroundColor = "#5a1e0e";
+                warnMsg.style.color = "#ffbb88";
+                warnMsg.style.borderRadius = "40px";
+                warnMsg.style.padding = "6px";
+                warnMsg.style.fontSize = "0.7rem";
+                warnMsg.style.zIndex = "99";
+                warnMsg.style.textAlign = "center";
+                const container = document.querySelector('.game-container');
+                if (container) {
+                    container.style.position = "relative";
+                    container.appendChild(warnMsg);
+                }
+            } else {
+                warnMsg.style.display = "block";
             }
+            
             if (penaltyTimer) clearTimeout(penaltyTimer);
             penaltyTimer = setTimeout(() => {
                 isPenalty = false;
                 if (tapDiv) tapDiv.style.filter = "";
-                const msgDiv = document.getElementById("antiCheatMsg");
-                if (msgDiv) msgDiv.remove();
+                const msg = document.getElementById("antiCheatMsg");
+                if (msg) msg.style.display = "none";
             }, 3800);
         }
         
-        // ---------- ГЕНЕРАЦИЯ КОДА (sqw или mng) ----------
+        // ---------- ГЕНЕРАЦИЯ СЕКРЕТНОГО КОДА (sqw или mng) ----------
         function generateSecretCode() {
             const prefix = Math.random() < 0.5 ? "sqw" : "mng";
             const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -408,9 +422,9 @@
             return prefix + randomPart;
         }
         
-        // ---------- ОБНОВЛЕНИЕ ВСЕГО UI + АВТОСОХРАНЕНИЕ ----------
+        // ---------- ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ----------
         function updateUI() {
-            document.getElementById('clickCounter').innerText = totalClicks;
+            document.getElementById('clickCounter').innerText = totalClicks.toLocaleString();
             document.getElementById('powerValue').innerText = clickPower;
             
             const nextCost = getCurrentUpgradeCost();
@@ -425,7 +439,7 @@
                 upgradeButton.disabled = true;
             }
             
-            // Секретный код за 1 000 000 кликов
+            // Секретный код при 1 000 000
             if (!secretUnlocked && totalClicks >= 1000000) {
                 currentSecretCode = generateSecretCode();
                 secretUnlocked = true;
@@ -435,18 +449,17 @@
                 secretBox.style.background = "#3f281cee";
                 secretBox.style.borderLeftColor = "#e7a35c";
                 
-                const goalMsg = document.getElementById('goalAchieveMsg');
-                if (!goalMsg) {
-                    const msg = document.createElement('div');
-                    msg.id = "goalAchieveMsg";
-                    msg.innerText = "💀 ТЫ ПРОКЛЯЛ МИЛЛИОН! КОД ОТКРЫТ 💀";
-                    msg.style.background = "#3b2219";
-                    msg.style.marginTop = "8px";
-                    msg.style.borderRadius = "28px";
-                    msg.style.fontSize = "0.7rem";
-                    msg.style.padding = "4px";
-                    document.querySelector('.secret-area')?.appendChild(msg);
-                    setTimeout(() => { if(msg) msg.style.opacity = "0.6"; }, 3000);
+                if (!document.getElementById('goalAchieveMsg')) {
+                    const goalMsg = document.createElement('div');
+                    goalMsg.id = "goalAchieveMsg";
+                    goalMsg.innerText = "💀 ТЫ ПРОКЛЯЛ МИЛЛИОН! КОД ОТКРЫТ 💀";
+                    goalMsg.style.background = "#3b2219";
+                    goalMsg.style.marginTop = "8px";
+                    goalMsg.style.borderRadius = "28px";
+                    goalMsg.style.fontSize = "0.7rem";
+                    goalMsg.style.padding = "4px";
+                    document.querySelector('.secret-area')?.appendChild(goalMsg);
+                    setTimeout(() => { if(goalMsg) goalMsg.style.opacity = "0.7"; }, 3000);
                 }
             } 
             else if (secretUnlocked && currentSecretCode) {
@@ -461,11 +474,11 @@
                 }
             }
             
-            // Автосохранение после каждого обновления UI (после клика/прокачки)
+            // Сохраняем при каждом обновлении
             saveGame();
         }
         
-        // ---------- ОБРАБОТКА ТАПА ----------
+        // ---------- ОБРАБОТКА КЛИКА ----------
         function handleTap(event) {
             if (isPenalty) {
                 const skull = document.getElementById('skullEmoji');
@@ -481,6 +494,7 @@
             totalClicks += clickPower;
             updateUI();
             
+            // Анимация
             const skullDiv = document.getElementById('skullEmoji');
             if (skullDiv) {
                 skullDiv.style.transform = "scale(0.85)";
@@ -493,7 +507,7 @@
             }
         }
         
-        // ---------- ПРОКАЧКА ----------
+        // ---------- УЛУЧШЕНИЕ (цена растёт, +1 к клику) ----------
         function upgradeAction() {
             if (isPenalty) return;
             
@@ -518,52 +532,48 @@
         
         // ---------- СБРОС ИГРЫ ----------
         function resetGame() {
-            totalClicks = 0;
-            clickPower = 1;
-            upgradeLevel = 0;
-            secretUnlocked = false;
-            currentSecretCode = "";
-            clickTimestamps = [];
-            if (penaltyTimer) clearTimeout(penaltyTimer);
-            isPenalty = false;
-            
-            const tapDiv = document.querySelector('.tap-image');
-            if (tapDiv) tapDiv.style.filter = "";
-            const warnMsg = document.getElementById("antiCheatMsg");
-            if (warnMsg) warnMsg.remove();
-            
-            const secretBox = document.getElementById('secretBox');
-            if(secretBox){
-                secretBox.style.background = "#030105cc";
-                secretBox.style.borderLeftColor = "#aa6e42";
+            if (confirm("🪦 ТОЧНО РАЗРУШИТЬ СКЛЕП? Весь прогресс исчезнет навсегда! 🪦")) {
+                totalClicks = 0;
+                clickPower = 1;
+                upgradeLevel = 0;
+                secretUnlocked = false;
+                currentSecretCode = "";
+                clickTimestamps = [];
+                if (penaltyTimer) clearTimeout(penaltyTimer);
+                isPenalty = false;
+                
+                const tapDiv = document.querySelector('.tap-image');
+                if (tapDiv) tapDiv.style.filter = "";
+                const warnMsg = document.getElementById("antiCheatMsg");
+                if (warnMsg) warnMsg.style.display = "none";
+                
+                const secretBox = document.getElementById('secretBox');
+                if(secretBox){
+                    secretBox.style.background = "#030105cc";
+                    secretBox.style.borderLeftColor = "#aa6e42";
+                }
+                const goalMsg = document.getElementById('goalAchieveMsg');
+                if(goalMsg) goalMsg.remove();
+                
+                updateUI();
+                saveGame();
             }
-            const goalMsg = document.getElementById('goalAchieveMsg');
-            if(goalMsg) goalMsg.remove();
-            
-            updateUI();
-            // после сброса сохраняем чистый прогресс
-            saveGame();
         }
         
-        // ---------- ПРИВЯЗКА СОБЫТИЙ И ЗАГРУЗКА СОХРАНЕНИЯ ----------
-        const tapZone = document.getElementById('tapZone');
-        const upgradeBtnElem = document.getElementById('upgradeBtn');
-        const resetBtnElem = document.getElementById('resetBtn');
-        
-        // ЗАГРУЖАЕМ СОХРАНЕНИЕ ПРИ СТАРТЕ
+        // ---------- ИНИЦИАЛИЗАЦИЯ ----------
         const loaded = loadGame();
         if (loaded) {
-            // дополнительная проверка на secretUnlocked + код: если код был но флаг есть — ок
+            // если секрет разблокирован но кода нет — генерируем
             if (secretUnlocked && (!currentSecretCode || currentSecretCode === "")) {
                 currentSecretCode = generateSecretCode();
             }
-            // если после загрузки кликов стало >= 1 млн, но секрет не проставлен (на всякий)
+            // если по кликам уже 1 млн, но флага нет — исправляем
             if (totalClicks >= 1000000 && !secretUnlocked) {
                 currentSecretCode = generateSecretCode();
                 secretUnlocked = true;
             }
         } else {
-            // первый запуск, всё по дефолту (0 кликов, сила 1)
+            // первый запуск: всё по нулям
             totalClicks = 0;
             clickPower = 1;
             upgradeLevel = 0;
@@ -571,26 +581,31 @@
             currentSecretCode = "";
         }
         
-        // первоначальный рендер
+        // первичный рендер
         updateUI();
         
-        // Слушатели событий
+        // Привязка событий
+        const tapZone = document.getElementById('tapZone');
+        const upgradeBtnElem = document.getElementById('upgradeBtn');
+        const resetBtnElem = document.getElementById('resetBtn');
+        
         tapZone.addEventListener('click', handleTap);
         upgradeBtnElem.addEventListener('click', upgradeAction);
         resetBtnElem.addEventListener('click', resetGame);
         
+        // Защита от контекстного меню на черепе
         const tapImageDiv = document.querySelector('.tap-image');
         if (tapImageDiv) {
             tapImageDiv.addEventListener('contextmenu', (e) => e.preventDefault());
         }
         
-        // Сохраняем перед закрытием страницы (на всякий случай дубль)
+        // Сохраняем перед закрытием страницы
         window.addEventListener('beforeunload', () => {
             saveGame();
         });
         
-        console.log("Тапалка покойника с сохранением — теперь прогресс не пропадает после закрытия!");
+        console.log("Тапалка покойника загружена. Прогресс сохраняется в localStorage. Цель — 1 000 000 кликов!");
     })();
 </script>
 </body>
-                                                                                                                                                                   </html>
+        </html>7
